@@ -3,18 +3,17 @@ package restful
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"github.com/labasubagia/realworld-backend/internal/core/util/exception"
 )
 
-func errorHandler(c *gin.Context, err error) {
+func errorHandler(w http.ResponseWriter, err error) {
 	if err == nil {
-		c.AbortWithStatusJSON(http.StatusOK, nil)
+		writeJSON(w, http.StatusOK, nil)
 		return
 	}
 	fail, ok := err.(*exception.Exception)
 	if !ok {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, fail)
+		writeJSON(w, http.StatusInternalServerError, fail)
 		return
 	}
 	if !fail.HasError() {
@@ -31,5 +30,5 @@ func errorHandler(c *gin.Context, err error) {
 	default:
 		statusCode = http.StatusInternalServerError
 	}
-	c.AbortWithStatusJSON(statusCode, fail)
+	writeJSON(w, statusCode, fail)
 }

@@ -3,7 +3,7 @@ package restful
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 	"github.com/labasubagia/realworld-backend/internal/core/domain"
 	"github.com/labasubagia/realworld-backend/internal/core/port"
 )
@@ -18,14 +18,14 @@ type RegisterRequest struct {
 	User RegisterRequestUser `json:"user"`
 }
 
-func (server *Server) Register(c *gin.Context) {
+func (server *Server) Register(w http.ResponseWriter, r *http.Request) {
 	req := RegisterRequest{}
-	if err := c.BindJSON(&req); err != nil {
-		errorHandler(c, err)
+	if err := bindJSON(w, r, &req); err != nil {
+		errorHandler(w, err)
 		return
 	}
 
-	user, err := server.service.User().Register(c, port.RegisterParams{
+	user, err := server.service.User().Register(r.Context(), port.RegisterParams{
 		User: domain.User{
 			Email:    req.User.Email,
 			Username: req.User.Username,
@@ -33,12 +33,12 @@ func (server *Server) Register(c *gin.Context) {
 		},
 	})
 	if err != nil {
-		errorHandler(c, err)
+		errorHandler(w, err)
 		return
 	}
 
 	res := UserResponse{serializeUser(user)}
-	c.JSON(http.StatusCreated, res)
+	writeJSON(w, http.StatusCreated, res)
 }
 
 type LoginParamUser struct {
@@ -50,41 +50,41 @@ type LoginRequest struct {
 	User LoginParamUser `json:"user"`
 }
 
-func (server *Server) Login(c *gin.Context) {
+func (server *Server) Login(w http.ResponseWriter, r *http.Request) {
 	req := LoginRequest{}
-	if err := c.BindJSON(&req); err != nil {
-		errorHandler(c, err)
+	if err := bindJSON(w, r, &req); err != nil {
+		errorHandler(w, err)
 		return
 	}
 
-	user, err := server.service.User().Login(c, port.LoginParams{
+	user, err := server.service.User().Login(r.Context(), port.LoginParams{
 		User: domain.User{
 			Email:    req.User.Email,
 			Password: req.User.Password,
 		},
 	})
 	if err != nil {
-		errorHandler(c, err)
+		errorHandler(w, err)
 		return
 	}
 
 	res := UserResponse{serializeUser(user)}
-	c.JSON(http.StatusOK, res)
+	writeJSON(w, http.StatusOK, res)
 }
 
-func (server *Server) CurrentUser(c *gin.Context) {
-	authArg, err := getAuthArg(c)
+func (server *Server) CurrentUser(w http.ResponseWriter, r *http.Request) {
+	authArg, err := getAuthArg(r)
 	if err != nil {
-		errorHandler(c, err)
+		errorHandler(w, err)
 		return
 	}
-	user, err := server.service.User().Current(c, authArg)
+	user, err := server.service.User().Current(r.Context(), authArg)
 	if err != nil {
-		errorHandler(c, err)
+		errorHandler(w, err)
 		return
 	}
 	res := UserResponse{serializeUser(user)}
-	c.JSON(http.StatusOK, res)
+	writeJSON(w, http.StatusOK, res)
 }
 
 type UpdateUser struct {
@@ -99,18 +99,18 @@ type UpdateUserRequest struct {
 	User UpdateUser `json:"user"`
 }
 
-func (server *Server) UpdateUser(c *gin.Context) {
-	authArg, err := getAuthArg(c)
+func (server *Server) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	authArg, err := getAuthArg(r)
 	if err != nil {
-		errorHandler(c, err)
+		errorHandler(w, err)
 		return
 	}
 	req := UpdateUserRequest{}
-	if err := c.BindJSON(&req); err != nil {
-		errorHandler(c, err)
+	if err := bindJSON(w, r, &req); err != nil {
+		errorHandler(w, err)
 		return
 	}
-	user, err := server.service.User().Update(c, port.UpdateUserParams{
+	user, err := server.service.User().Update(r.Context(), port.UpdateUserParams{
 		AuthArg: authArg,
 		User: domain.User{
 			ID:       authArg.Payload.UserID,
@@ -122,62 +122,62 @@ func (server *Server) UpdateUser(c *gin.Context) {
 		},
 	})
 	if err != nil {
-		errorHandler(c, err)
+		errorHandler(w, err)
 		return
 	}
 	res := UserResponse{serializeUser(user)}
-	c.JSON(http.StatusOK, res)
+	writeJSON(w, http.StatusOK, res)
 }
 
-func (server *Server) Profile(c *gin.Context) {
-	username := c.Param("username")
-	authArg, _ := getAuthArg(c)
-	user, err := server.service.User().Profile(c, port.ProfileParams{
+func (server *Server) Profile(w http.ResponseWriter, r *http.Request) {
+	username := chi.URLParam(r, "username")
+	authArg, _ := getAuthArg(r)
+	user, err := server.service.User().Profile(r.Context(), port.ProfileParams{
 		Username: username,
 		AuthArg:  authArg,
 	})
 	if err != nil {
-		errorHandler(c, err)
+		errorHandler(w, err)
 		return
 	}
 	res := ProfileResponse{serializeProfile(user)}
-	c.JSON(http.StatusOK, res)
+	writeJSON(w, http.StatusOK, res)
 }
 
-func (server *Server) FollowUser(c *gin.Context) {
-	username := c.Param("username")
-	authArg, err := getAuthArg(c)
+func (server *Server) FollowUser(w http.ResponseWriter, r *http.Request) {
+	username := chi.URLParam(r, "username")
+	authArg, err := getAuthArg(r)
 	if err != nil {
-		errorHandler(c, err)
+		errorHandler(w, err)
 		return
 	}
-	user, err := server.service.User().Follow(c, port.ProfileParams{
+	user, err := server.service.User().Follow(r.Context(), port.ProfileParams{
 		Username: username,
 		AuthArg:  authArg,
 	})
 	if err != nil {
-		errorHandler(c, err)
+		errorHandler(w, err)
 		return
 	}
 	res := ProfileResponse{serializeProfile(user)}
-	c.JSON(http.StatusOK, res)
+	writeJSON(w, http.StatusOK, res)
 }
 
-func (server *Server) UnFollowUser(c *gin.Context) {
-	username := c.Param("username")
-	authArg, err := getAuthArg(c)
+func (server *Server) UnFollowUser(w http.ResponseWriter, r *http.Request) {
+	username := chi.URLParam(r, "username")
+	authArg, err := getAuthArg(r)
 	if err != nil {
-		errorHandler(c, err)
+		errorHandler(w, err)
 		return
 	}
-	user, err := server.service.User().UnFollow(c, port.ProfileParams{
+	user, err := server.service.User().UnFollow(r.Context(), port.ProfileParams{
 		Username: username,
 		AuthArg:  authArg,
 	})
 	if err != nil {
-		errorHandler(c, err)
+		errorHandler(w, err)
 		return
 	}
 	res := ProfileResponse{serializeProfile(user)}
-	c.JSON(http.StatusOK, res)
+	writeJSON(w, http.StatusOK, res)
 }
